@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "https://ocean-eye-server.vercel.app/api/$1" },
+    { "source": "/ai/(.*)", "destination": "https://ocean-eye-ai.vercel.app/$1" }
+  ]
+}

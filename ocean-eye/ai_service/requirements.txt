@@ -1,0 +1,8 @@
+Flask
+requests
+transformers
+torch
+Pillow
+opencv-python
+exifread
+numpy
