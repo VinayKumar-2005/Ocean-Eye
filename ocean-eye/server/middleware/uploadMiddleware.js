@@ -1,29 +1,45 @@
+// /server/middleware/uploadMiddleware.js
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
+const DatauriParser = require('datauri/parser');
+const cloudinary = require('../config/cloudinary'); // Adjust path if needed
 
-const uploadDir = 'public/uploads/';
+// Use memoryStorage so the file is not saved to disk but kept in memory
+const storage = multer.memoryStorage();
+const multerUploads = multer({ storage }).single('image'); // 'image' is the form field name
 
-// Ensure the upload directory exists
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-}
+const parser = new DatauriParser();
 
-// Set up storage engine for where to save the files
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    // The path is now relative to the server's root directory
-    cb(null, uploadDir); 
-  },
-  filename: function (req, file, cb) {
-    // Create a unique filename to avoid name conflicts
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
+const cloudinaryUpload = (req, res, next) => {
+  // Use multer to handle the file upload
+  multerUploads(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({ message: 'File upload failed.', error: err });
+    }
 
-// Initialize the upload middleware with the storage configuration
-const upload = multer({ storage: storage });
+    // If no file is provided, just move to the next middleware
+    if (!req.file) {
+      return next();
+    }
 
-module.exports = upload;
+    // Convert the file buffer to a Data URI
+    const extName = path.extname(req.file.originalname).toString();
+    const file64 = parser.format(extName, req.file.buffer);
 
+    // Upload to Cloudinary
+    cloudinary.uploader.upload(file64.content, {
+        // You can add upload options here, e.g., a folder name
+        // folder: 'my-app-uploads' 
+    })
+    .then((result) => {
+        // Attach the Cloudinary response to the request object
+        req.cloudinary = result;
+        next();
+    })
+    .catch((error) => {
+        return res.status(500).json({ message: 'Cloudinary upload failed.', error: error });
+    });
+  });
+};
+
+module.exports = cloudinaryUpload;
